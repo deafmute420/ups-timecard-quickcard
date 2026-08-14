@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         UPS Activity System Quick Card
 // @namespace    UPS
-// @version      3.0
+// @version      3.1
 // @description  Personal Quick Card replacement for UPS Activity System
 // @match        *://actsys.inside.ups.com/*
+// @downloadURL  https://raw.githubusercontent.com/deafmute420/ups-timecard-quickcard/main/ups-timecard-quickcard.user.js
+// @updateURL    https://raw.githubusercontent.com/deafmute420/ups-timecard-quickcard/main/ups-timecard-quickcard.user.js
 // @grant        none
 // ==/UserScript==
 
