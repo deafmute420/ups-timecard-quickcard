@@ -2,11 +2,13 @@
 
 ## Features
 
-- Fill Timecard
-- Configure Schedule
-- Export Schedule
-- Import Schedule
-- Reset Schedule
+- Fill Timecard with one click
+- Create and manage multiple schedules
+- Export Schedule all schedules to JSON file
+- Import Schedules from JSON file
+- Delete saved schedules
+- Saves schedules locally in the browser
+- Supports automatic updates through GitHub/Tampermonkey
 
 ## Installation
 
