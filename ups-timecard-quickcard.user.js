@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UPS Activity System Quick Card
 // @namespace    UPS
-// @version      3.1
+// @version      3.2
 // @description  Personal Quick Card replacement for UPS Activity System
 // @match        *://actsys.inside.ups.com/*
 // @downloadURL  https://raw.githubusercontent.com/deafmute420/ups-timecard-quickcard/main/ups-timecard-quickcard.user.js
@@ -12,7 +12,6 @@
 (function () {
     'use strict';
 
-    // Only run on the Timecard page
     const isTimecardPage =
         document.querySelector('[name="ReportIn"]') &&
         document.querySelector('[name="Finish"]');
@@ -21,38 +20,56 @@
         return;
     }
 
-    const STORAGE_KEY = 'ups_timecard_schedule';
+    const STORAGE_KEY = 'ups_timecard_schedules';
 
-    function getSchedule() {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : null;
+    function getData() {
+        const data = localStorage.getItem(STORAGE_KEY);
+
+        return data
+            ? JSON.parse(data)
+            : {
+                selectedSchedule: '',
+                schedules: {}
+            };
     }
 
-    function saveSchedule(schedule) {
+    function saveData(data) {
         localStorage.setItem(
             STORAGE_KEY,
-            JSON.stringify(schedule)
+            JSON.stringify(data)
         );
     }
 
     function configureSchedule() {
 
-        const current = getSchedule() || {
-            reportIn: '',
-            finish: '',
-            rows: []
-        };
+        const data = getData();
+
+        const scheduleName = prompt(
+            'Schedule Name:',
+            data.selectedSchedule || ''
+        );
+
+        if (!scheduleName) {
+            return;
+        }
+
+        const existing =
+            data.schedules[scheduleName] || {
+                reportIn: '',
+                finish: '',
+                rows: []
+            };
 
         const reportIn = prompt(
-            'Report To Work Time (Example: 15:00)',
-            current.reportIn || ''
+            'Report To Work Time',
+            existing.reportIn
         );
 
         if (reportIn === null) return;
 
         const finish = prompt(
-            'Finish Work Time (Example: 00:00)',
-            current.finish || ''
+            'Finish Work Time',
+            existing.finish
         );
 
         if (finish === null) return;
@@ -61,29 +78,19 @@
 
         for (let i = 1; i <= 7; i++) {
 
-            const existing = current.rows[i - 1] || {};
+            const row =
+                existing.rows[i - 1] || {};
 
             const time = prompt(
-                `Row ${i} Time (leave blank if unused)`,
-                existing.time || ''
+                `Row ${i} Time`,
+                row.time || ''
             );
 
             if (time === null) return;
 
             const code = prompt(
-                `Row ${i} Code
-
-Examples:
-100TSGW = INT TECH SUPPORT
-130TSGW = INT BREAK
-120TSGW = INT SELF DEVELOP
-
-200TSGX = EXT TECH SUPPORT
-230TSGX = EXT BREAK
-
-950TSGW = TSG MEETING
-0900 = Non-Work/Lunch`,
-                existing.code || ''
+                `Row ${i} Code`,
+                row.code || ''
             );
 
             if (code === null) return;
@@ -94,179 +101,279 @@ Examples:
             });
         }
 
-        saveSchedule({
+        data.schedules[scheduleName] = {
             reportIn,
             finish,
             rows
-        });
+        };
 
-        alert('Schedule saved successfully.');
+        data.selectedSchedule =
+            scheduleName;
+
+        saveData(data);
+
+        rebuildDropdown();
+
+        alert(
+            `Schedule "${scheduleName}" saved.`
+        );
+    }
+
+    function getSelectedSchedule() {
+
+        const data = getData();
+
+        const selector =
+            document.getElementById(
+                'upsScheduleSelect'
+            );
+
+        if (!selector) {
+            return null;
+        }
+
+        return data.schedules[
+            selector.value
+        ];
     }
 
     function fillTimecard() {
 
-        const schedule = getSchedule();
+        const schedule =
+            getSelectedSchedule();
 
         if (!schedule) {
+
             alert(
-                'No schedule configured.\n\nClick "Configure Schedule" first.'
+                'No schedule selected.'
             );
+
             return;
         }
 
         const reportInField =
-            document.querySelector('[name="ReportIn"]');
+            document.querySelector(
+                '[name="ReportIn"]'
+            );
 
         const finishField =
-            document.querySelector('[name="Finish"]');
+            document.querySelector(
+                '[name="Finish"]'
+            );
 
         if (reportInField) {
-            reportInField.value = schedule.reportIn;
+            reportInField.value =
+                schedule.reportIn;
         }
 
         if (finishField) {
-            finishField.value = schedule.finish;
+            finishField.value =
+                schedule.finish;
         }
 
-        schedule.rows.forEach((entry, index) => {
+        schedule.rows.forEach(
+            (entry, index) => {
 
-            const row = index + 1;
+                const row =
+                    index + 1;
 
-            const timeField =
-                document.querySelector(`[name="Time_${row}"]`);
+                const timeField =
+                    document.querySelector(
+                        `[name="Time_${row}"]`
+                    );
 
-            const codeField =
-                document.querySelector(`[name="Code_${row}"]`);
+                const codeField =
+                    document.querySelector(
+                        `[name="Code_${row}"]`
+                    );
 
-            if (timeField) {
-                timeField.value = entry.time || '';
+                if (timeField) {
+                    timeField.value =
+                        entry.time || '';
+                }
+
+                if (codeField) {
+                    codeField.value =
+                        entry.code || '';
+                }
             }
-
-            if (codeField) {
-                codeField.value = entry.code || '';
-            }
-        });
+        );
 
         alert('Timecard filled.');
     }
 
-    function exportSchedule() {
+    function deleteSchedule() {
 
-        const schedule = getSchedule();
+        const selector =
+            document.getElementById(
+                'upsScheduleSelect'
+            );
 
-        if (!schedule) {
-            alert('No schedule configured.');
+        if (!selector.value) {
+            return;
+        }
+
+        if (
+            !confirm(
+                `Delete schedule "${selector.value}"?`
+            )
+        ) {
             return;
         }
 
         const data =
-            JSON.stringify(schedule, null, 2);
+            getData();
 
-        const blob = new Blob(
-            [data],
-            { type: 'application/json' }
-        );
+        delete data.schedules[
+            selector.value
+        ];
+
+        data.selectedSchedule = '';
+
+        saveData(data);
+
+        rebuildDropdown();
+    }
+
+    function exportSchedules() {
+
+        const data =
+            getData();
+
+        const blob =
+            new Blob(
+                [
+                    JSON.stringify(
+                        data,
+                        null,
+                        2
+                    )
+                ],
+                {
+                    type:
+                        'application/json'
+                }
+            );
 
         const url =
-            URL.createObjectURL(blob);
+            URL.createObjectURL(
+                blob
+            );
 
-        const link =
-            document.createElement('a');
+        const a =
+            document.createElement(
+                'a'
+            );
 
-        link.href = url;
-        link.download =
-            'UPS_Timecard_Schedule.json';
+        a.href = url;
 
-        document.body.appendChild(link);
+        a.download =
+            'UPS_Timecard_Schedules.json';
 
-        link.click();
-
-        document.body.removeChild(link);
+        a.click();
 
         URL.revokeObjectURL(url);
     }
 
-    function importSchedule() {
+    function importSchedules() {
 
         const input =
-            document.createElement('input');
+            document.createElement(
+                'input'
+            );
 
         input.type = 'file';
+
         input.accept = '.json';
 
-        input.addEventListener(
-            'change',
-            function () {
+        input.onchange = function () {
 
-                const file = this.files[0];
+            const file =
+                input.files[0];
 
-                if (!file) {
-                    return;
-                }
+            if (!file) return;
 
-                const reader =
-                    new FileReader();
+            const reader =
+                new FileReader();
 
-                reader.onload = function (e) {
+            reader.onload =
+                function (e) {
 
                     try {
 
-                        const schedule =
+                        const data =
                             JSON.parse(
                                 e.target.result
                             );
 
-                        if (
-                            !schedule.reportIn ||
-                            !schedule.finish ||
-                            !Array.isArray(
-                                schedule.rows
-                            )
-                        ) {
-                            throw new Error();
-                        }
+                        saveData(data);
 
-                        saveSchedule(schedule);
+                        rebuildDropdown();
 
                         alert(
-                            'Schedule imported successfully.'
+                            'Schedules imported.'
                         );
 
                     } catch {
 
                         alert(
-                            'Invalid schedule file.'
+                            'Invalid file.'
                         );
-
                     }
-
                 };
 
-                reader.readAsText(file);
-
-            }
-        );
+            reader.readAsText(
+                file
+            );
+        };
 
         input.click();
     }
 
-    function resetSchedule() {
+    function rebuildDropdown() {
 
-        const confirmed = confirm(
-            'Delete your saved schedule?'
-        );
+        const data =
+            getData();
 
-        if (!confirmed) {
+        const select =
+            document.getElementById(
+                'upsScheduleSelect'
+            );
+
+        if (!select) {
             return;
         }
 
-        localStorage.removeItem(
-            STORAGE_KEY
-        );
+        select.innerHTML = '';
 
-        alert(
-            'Schedule deleted.'
-        );
+        Object.keys(
+            data.schedules
+        ).forEach(name => {
+
+            const option =
+                document.createElement(
+                    'option'
+                );
+
+            option.value = name;
+
+            option.textContent =
+                name;
+
+            select.appendChild(
+                option
+            );
+        });
+
+        if (
+            data.selectedSchedule &&
+            data.schedules[
+                data.selectedSchedule
+            ]
+        ) {
+            select.value =
+                data.selectedSchedule;
+        }
     }
 
     function createButton(
@@ -277,34 +384,77 @@ Examples:
     ) {
 
         const button =
-            document.createElement('button');
+            document.createElement(
+                'button'
+            );
 
-        button.textContent = text;
+        button.textContent =
+            text;
 
-        Object.assign(button.style, {
-            position: 'fixed',
-            top,
-            right: '20px',
-            zIndex: '99999',
-            padding: '10px 16px',
-            backgroundColor: color,
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            width: '170px'
-        });
-
-        button.addEventListener(
-            'click',
-            handler
+        Object.assign(
+            button.style,
+            {
+                position: 'fixed',
+                right: '20px',
+                top,
+                zIndex: '99999',
+                width: '180px',
+                padding: '10px',
+                backgroundColor:
+                    color,
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+            }
         );
+
+        button.onclick =
+            handler;
 
         document.body.appendChild(
             button
         );
     }
+
+    const selector =
+        document.createElement(
+            'select'
+        );
+
+    selector.id =
+        'upsScheduleSelect';
+
+    Object.assign(
+        selector.style,
+        {
+            position: 'fixed',
+            top: '60px',
+            right: '20px',
+            width: '180px',
+            zIndex: '99999'
+        }
+    );
+
+    selector.addEventListener(
+        'change',
+        function () {
+
+            const data =
+                getData();
+
+            data.selectedSchedule =
+                this.value;
+
+            saveData(data);
+        }
+    );
+
+    document.body.appendChild(
+        selector
+    );
+
+    rebuildDropdown();
 
     createButton(
         '⚡ Fill Timecard',
@@ -314,7 +464,7 @@ Examples:
     );
 
     createButton(
-        '⚙ Configure',
+        '⚙ Add / Update',
         '145px',
         '#28a745',
         configureSchedule
@@ -324,21 +474,21 @@ Examples:
         '📤 Export',
         '190px',
         '#6f42c1',
-        exportSchedule
+        exportSchedules
     );
 
     createButton(
         '📥 Import',
         '235px',
         '#fd7e14',
-        importSchedule
+        importSchedules
     );
 
     createButton(
-        '🗑 Reset',
+        '🗑 Delete Schedule',
         '280px',
         '#dc3545',
-        resetSchedule
+        deleteSchedule
     );
 
 })();
