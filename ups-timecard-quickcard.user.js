@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UPS Activity System Quick Card
 // @namespace    UPS
-// @version      3.2.1
+// @version      4.0.0
 // @description  Personal Quick Card replacement for UPS Activity System
 // @match        *://actsys.inside.ups.com/*
 // @downloadURL  https://raw.githubusercontent.com/deafmute420/ups-timecard-quickcard/main/ups-timecard-quickcard.user.js
@@ -11,6 +11,13 @@
 
 /*
 Version History
+
+4.0.0
+- Added automatic row detection
+- Added dynamic schedule length support
+- Configuration now ends when a blank row is entered
+- Unused rows are automatically cleared
+
 3.2.1
 - Added support for multiple schedules
 - Added schedule selection dropdown
@@ -18,13 +25,16 @@ Version History
 - Added schedule export functionality
 - Added schedule deletion
 - Reworked storage format for multi-profile support
+
 3.0.0
 - Added schedule configuration
 - Added import/export support
 - Added reset functionality
 - Added page detection
+
 2.0.0
 - Added configurable schedule support
+
 1.0.0
 - Initial Quick Card replacement
 */
@@ -43,7 +53,9 @@ Version History
     const STORAGE_KEY = 'ups_timecard_schedules';
 
     function getData() {
-        const data = localStorage.getItem(STORAGE_KEY);
+
+        const data =
+            localStorage.getItem(STORAGE_KEY);
 
         return data
             ? JSON.parse(data)
@@ -54,20 +66,30 @@ Version History
     }
 
     function saveData(data) {
+
         localStorage.setItem(
             STORAGE_KEY,
             JSON.stringify(data)
         );
     }
 
+    function getAvailableRowCount() {
+
+        return document.querySelectorAll(
+            'input[name^="Time_"]'
+        ).length;
+    }
+
     function configureSchedule() {
 
-        const data = getData();
+        const data =
+            getData();
 
-        const scheduleName = prompt(
-            'Schedule Name:',
-            data.selectedSchedule || ''
-        );
+        const scheduleName =
+            prompt(
+                'Schedule Name:',
+                data.selectedSchedule || ''
+            );
 
         if (!scheduleName) {
             return;
@@ -80,40 +102,70 @@ Version History
                 rows: []
             };
 
-        const reportIn = prompt(
-            'Report To Work Time',
-            existing.reportIn
-        );
+        const reportIn =
+            prompt(
+                'Report To Work Time',
+                existing.reportIn
+            );
 
-        if (reportIn === null) return;
+        if (reportIn === null) {
+            return;
+        }
 
-        const finish = prompt(
-            'Finish Work Time',
-            existing.finish
-        );
+        const finish =
+            prompt(
+                'Finish Work Time',
+                existing.finish
+            );
 
-        if (finish === null) return;
+        if (finish === null) {
+            return;
+        }
 
         const rows = [];
 
-        for (let i = 1; i <= 7; i++) {
+        for (let i = 1; ; i++) {
 
-            const row =
+            const existingRow =
                 existing.rows[i - 1] || {};
 
-            const time = prompt(
-                `Row ${i} Time`,
-                row.time || ''
-            );
+            const time =
+                prompt(
+                    `Row ${i} Time\n\nLeave blank and click OK when finished.`,
+                    existingRow.time || ''
+                );
 
-            if (time === null) return;
+            if (time === null) {
+                return;
+            }
 
-            const code = prompt(
-                `Row ${i} Code`,
-                row.code || ''
-            );
+            if (time.trim() === '') {
+                break;
+            }
 
-            if (code === null) return;
+            const code =
+                  prompt(
+                      `Row ${i} Code
+
+                      Internal
+                      100TSGW = INT TECH SUPPORT
+                      130TSGW = INT BREAK
+                      120TSGW = INT SELF DEVELOP
+                      950TSGW = TSG MEETING
+
+                      External
+                      200TSGX = EXT TECH SUPPORT
+                      230TSGX = EXT BREAK
+                      220TSGX = EXT SELF DEVELOP
+
+                      Other
+                      0900 = Non-Work/Lunch`,
+                      existingRow.code || ''
+                  );
+
+            if (code === null) {
+                return;
+            }
 
             rows.push({
                 time,
@@ -141,7 +193,8 @@ Version History
 
     function getSelectedSchedule() {
 
-        const data = getData();
+        const data =
+            getData();
 
         const selector =
             document.getElementById(
@@ -191,21 +244,29 @@ Version History
                 schedule.finish;
         }
 
-        schedule.rows.forEach(
-            (entry, index) => {
+        const rowCount =
+            getAvailableRowCount();
 
-                const row =
-                    index + 1;
+        for (
+            let row = 1;
+            row <= rowCount;
+            row++
+        ) {
 
-                const timeField =
-                    document.querySelector(
-                        `[name="Time_${row}"]`
-                    );
+            const entry =
+                schedule.rows[row - 1];
 
-                const codeField =
-                    document.querySelector(
-                        `[name="Code_${row}"]`
-                    );
+            const timeField =
+                document.querySelector(
+                    `[name="Time_${row}"]`
+                );
+
+            const codeField =
+                document.querySelector(
+                    `[name="Code_${row}"]`
+                );
+
+            if (entry) {
 
                 if (timeField) {
                     timeField.value =
@@ -216,8 +277,18 @@ Version History
                     codeField.value =
                         entry.code || '';
                 }
+
+            } else {
+
+                if (timeField) {
+                    timeField.value = '';
+                }
+
+                if (codeField) {
+                    codeField.value = '0';
+                }
             }
-        );
+        }
 
         alert('Timecard filled.');
     }
@@ -270,20 +341,15 @@ Version History
                     )
                 ],
                 {
-                    type:
-                        'application/json'
+                    type: 'application/json'
                 }
             );
 
         const url =
-            URL.createObjectURL(
-                blob
-            );
+            URL.createObjectURL(blob);
 
         const a =
-            document.createElement(
-                'a'
-            );
+            document.createElement('a');
 
         a.href = url;
 
@@ -298,12 +364,9 @@ Version History
     function importSchedules() {
 
         const input =
-            document.createElement(
-                'input'
-            );
+            document.createElement('input');
 
         input.type = 'file';
-
         input.accept = '.json';
 
         input.onchange = function () {
@@ -311,7 +374,9 @@ Version History
             const file =
                 input.files[0];
 
-            if (!file) return;
+            if (!file) {
+                return;
+            }
 
             const reader =
                 new FileReader();
@@ -342,9 +407,7 @@ Version History
                     }
                 };
 
-            reader.readAsText(
-                file
-            );
+            reader.readAsText(file);
         };
 
         input.click();
@@ -376,13 +439,9 @@ Version History
                 );
 
             option.value = name;
+            option.textContent = name;
 
-            option.textContent =
-                name;
-
-            select.appendChild(
-                option
-            );
+            select.appendChild(option);
         });
 
         if (
@@ -391,6 +450,7 @@ Version History
                 data.selectedSchedule
             ]
         ) {
+
             select.value =
                 data.selectedSchedule;
         }
@@ -420,8 +480,7 @@ Version History
                 zIndex: '99999',
                 width: '180px',
                 padding: '10px',
-                backgroundColor:
-                    color,
+                backgroundColor: color,
                 color: '#fff',
                 border: 'none',
                 borderRadius: '6px',
