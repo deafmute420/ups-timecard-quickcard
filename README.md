@@ -14,8 +14,8 @@
 
 1. Install Tampermonkey from Chrome Web Store.
 2. Manage Extension > Allow User Scrips.
-3. Open the userscript file.
-4. Install the script.
+3. Click on ups-timecard-quickcard.user.js link in this GitHub Repo
+4. Click RAW button and Tampermonkey will automatically ask you if you want to import script
 5. Navigate to UPS Activity System.
 6. Configure your schedule.
 
