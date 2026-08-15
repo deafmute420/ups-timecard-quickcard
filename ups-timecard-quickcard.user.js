@@ -1,13 +1,33 @@
 // ==UserScript==
 // @name         UPS Activity System Quick Card
 // @namespace    UPS
-// @version      3.2
+// @version      3.2.1
 // @description  Personal Quick Card replacement for UPS Activity System
 // @match        *://actsys.inside.ups.com/*
 // @downloadURL  https://raw.githubusercontent.com/deafmute420/ups-timecard-quickcard/main/ups-timecard-quickcard.user.js
 // @updateURL    https://raw.githubusercontent.com/deafmute420/ups-timecard-quickcard/main/ups-timecard-quickcard.user.js
 // @grant        none
 // ==/UserScript==
+
+/*
+Version History
+3.2.1
+- Added support for multiple schedules
+- Added schedule selection dropdown
+- Added schedule import functionality
+- Added schedule export functionality
+- Added schedule deletion
+- Reworked storage format for multi-profile support
+3.0.0
+- Added schedule configuration
+- Added import/export support
+- Added reset functionality
+- Added page detection
+2.0.0
+- Added configurable schedule support
+1.0.0
+- Initial Quick Card replacement
+*/
 
 (function () {
     'use strict';
